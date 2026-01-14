@@ -1,0 +1,12 @@
+[package]
+name = "leetcode"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[dev-dependencies]
+
+[[bin]]
+name = "leetcode_tests"
+path = "src/main.rs"

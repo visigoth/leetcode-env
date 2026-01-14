@@ -1,3 +1,14 @@
 .jj/
-build/
 .python-version
+
+# C++ build
+cpp/build/
+
+# Rust build
+rs/target/
+
+# Python
+py/*.egg-info/
+__pycache__/
+*.pyc
+.pytest_cache/

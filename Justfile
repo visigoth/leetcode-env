@@ -12,6 +12,15 @@ setup:
         echo "cmake is already installed"
     fi
 
+    # Ensure rust/cargo is installed
+    if ! command -v cargo &> /dev/null; then
+        echo "cargo not found, installing via rustup..."
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        source "$HOME/.cargo/env"
+    else
+        echo "cargo is already installed"
+    fi
+
     # Ensure pyenv virtualenv 'leetcode' exists
     if ! pyenv versions --bare | grep -q '^leetcode$'; then
         echo "Creating pyenv virtualenv 'leetcode'..."
@@ -23,3 +32,13 @@ setup:
     # Create .python-version for auto-activation
     echo "leetcode" > .python-version
     echo "Created .python-version for auto-activation"
+
+    # Install Python dev dependencies
+    echo "Installing Python dependencies..."
+    pip install -e py/[dev]
+
+    # Configure CMake for C++
+    echo "Configuring CMake..."
+    cmake -B cpp/build -S cpp
+
+    echo "Setup complete!"
