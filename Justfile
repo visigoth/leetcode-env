@@ -56,7 +56,7 @@ setup:
 
     # Install Python dev dependencies
     echo "Installing Python dependencies..."
-    pip install -e py/[dev]
+    pip install -e 'py/[dev]'
 
     # Configure CMake for C++
     echo "Configuring CMake..."
