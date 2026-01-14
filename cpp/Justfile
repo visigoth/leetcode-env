@@ -2,16 +2,12 @@
 set fallback
 
 build:
-    cmake -B build -S .
+    cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug
     cmake --build build
 
-test filter="*":
+test filter="*": build
     #!/usr/bin/env bash
     set -euo pipefail
-
-    # Build first
-    cmake -B build -S .
-    cmake --build build
 
     # If filter is just a number, wrap it as *P<number>*
     if [[ "{{filter}}" =~ ^[0-9]+$ ]]; then
