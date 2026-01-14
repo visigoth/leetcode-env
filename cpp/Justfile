@@ -1,0 +1,20 @@
+# Justfile for C++ leetcode solutions
+
+build:
+    cmake -B build -S .
+    cmake --build build
+
+test filter="*":
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Build first
+    cmake -B build -S .
+    cmake --build build
+
+    # If filter is just a number, wrap it as *P<number>*
+    if [[ "{{filter}}" =~ ^[0-9]+$ ]]; then
+        ./build/leetcode_tests --gtest_filter="*P{{filter}}*"
+    else
+        ./build/leetcode_tests --gtest_filter="{{filter}}"
+    fi
