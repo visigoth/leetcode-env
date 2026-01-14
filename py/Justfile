@@ -1,0 +1,17 @@
+# Justfile for Python leetcode solutions
+
+build:
+    pip install -e .[dev]
+
+test filter="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [ -z "{{filter}}" ]; then
+        pytest
+    elif [[ "{{filter}}" =~ ^[0-9]+$ ]]; then
+        # If filter is just a number, match the problem file
+        pytest -k "p{{filter}}"
+    else
+        pytest -k "{{filter}}"
+    fi

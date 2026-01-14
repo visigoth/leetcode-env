@@ -1,0 +1,17 @@
+# Justfile for Rust leetcode solutions
+
+build:
+    cargo build
+
+test filter="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [ -z "{{filter}}" ]; then
+        cargo test
+    elif [[ "{{filter}}" =~ ^[0-9]+$ ]]; then
+        # If filter is just a number, match the problem module
+        cargo test p{{filter}}
+    else
+        cargo test "{{filter}}"
+    fi
