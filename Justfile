@@ -1,5 +1,8 @@
 # Justfile for leetcode project
 
+start *args:
+    ~/.pyenv/versions/leetcode/bin/lc start {{args}}
+
 setup:
     #!/usr/bin/env bash
     set -euo pipefail
