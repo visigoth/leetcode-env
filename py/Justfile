@@ -1,4 +1,5 @@
 # Justfile for Python leetcode solutions
+set fallback
 
 build:
     pip install -e .[dev]

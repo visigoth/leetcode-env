@@ -1,4 +1,5 @@
 # Justfile for C++ leetcode solutions
+set fallback
 
 build:
     cmake -B build -S .
