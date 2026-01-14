@@ -21,6 +21,27 @@ setup:
         echo "cargo is already installed"
     fi
 
+    # Ensure nodeenv is installed
+    if ! command -v nodeenv &> /dev/null; then
+        echo "nodeenv not found, installing via homebrew..."
+        brew install nodeenv
+    else
+        echo "nodeenv is already installed"
+    fi
+
+    # Create node environment if it doesn't exist
+    if [ ! -d ".node" ]; then
+        echo "Creating node environment..."
+        nodeenv .node
+    else
+        echo "Node environment already exists"
+    fi
+
+    # Install leetcode-cli in node environment
+    echo "Installing leetcode-cli..."
+    source .node/bin/activate
+    npm install -g @night-slayer18/leetcode-cli
+
     # Ensure pyenv virtualenv 'leetcode' exists
     if ! pyenv versions --bare | grep -q '^leetcode$'; then
         echo "Creating pyenv virtualenv 'leetcode'..."

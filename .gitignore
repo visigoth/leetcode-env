@@ -1,5 +1,6 @@
 .jj/
 .python-version
+.node/
 
 # C++ build
 cpp/build/
