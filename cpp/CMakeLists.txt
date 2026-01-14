@@ -14,10 +14,10 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
-# Collect all problem source files (recursive)
-file(GLOB_RECURSE PROBLEM_SOURCES
+# Collect wrapper files from root directory only (not recursive)
+file(GLOB PROBLEM_SOURCES
     CONFIGURE_DEPENDS
-    "${CMAKE_SOURCE_DIR}/*/*.cpp"
+    "${CMAKE_SOURCE_DIR}/[0-9]*.cpp"
 )
 
 # Build single test binary
