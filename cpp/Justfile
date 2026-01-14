@@ -1,6 +1,9 @@
 # Justfile for C++ leetcode solutions
 set fallback
 
+clean:
+    rm -rf build
+
 build:
     cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug
     cmake --build build
