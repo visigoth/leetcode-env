@@ -14,8 +14,11 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
-# Collect all problem source files
-file(GLOB PROBLEM_SOURCES "*/*.cpp")
+# Collect all problem source files (recursive)
+file(GLOB_RECURSE PROBLEM_SOURCES
+    CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/*/*.cpp"
+)
 
 # Build single test binary
 add_executable(leetcode_tests ${PROBLEM_SOURCES})
