@@ -8,6 +8,20 @@ build:
     cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug
     cmake --build build
 
+debug filter="": build
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [[ -z "{{filter}}" ]]; then
+        lldb ./build/leetcode_tests
+    elif [[ "{{filter}}" =~ ^[0-9]+$ ]]; then
+        lldb ./build/leetcode_tests \
+            -o "settings set target.run-args -- --gtest_filter='*P{{filter}}*'"
+    else
+        lldb ./build/leetcode_tests \
+            -o "settings set target.run-args -- --gtest_filter='{{filter}}'"
+    fi
+
 test filter="*": build
     #!/usr/bin/env bash
     set -euo pipefail
