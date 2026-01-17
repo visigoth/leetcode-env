@@ -3,6 +3,7 @@
 .node/
 
 # C++ build
+cpp/.cache
 cpp/build/
 
 # Rust build
