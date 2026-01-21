@@ -16,10 +16,11 @@ debug filter="": build
         lldb ./build/leetcode_tests
     elif [[ "{{filter}}" =~ ^[0-9]+$ ]]; then
         lldb ./build/leetcode_tests \
-            -o "settings set target.run-args -- --gtest_filter='*P{{filter}}*'"
+            -o "breakpoint set -r 'leetcode::p{{filter}}::P{{filter}}_.*::TestBody'" \
+            -o "settings set target.run-args -- --gtest_filter=*P{{filter}}*"
     else
         lldb ./build/leetcode_tests \
-            -o "settings set target.run-args -- --gtest_filter='{{filter}}'"
+            -o "settings set target.run-args -- --gtest_filter={{filter}}"
     fi
 
 test filter="*": build
