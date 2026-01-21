@@ -1,5 +1,6 @@
 """CLI wrapper for leetcode commands."""
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -136,7 +137,7 @@ def cli():
 @click.option(
     "-l",
     "--lang",
-    default="cpp",
+    default=lambda: os.environ.get("LEETCODE_DEFAULT_LANG", "cpp"),
     help="Comma-separated languages: cpp,py,rs",
 )
 def start(problem_number: int, lang: str):

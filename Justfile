@@ -3,26 +3,60 @@
 start *args:
     ~/.pyenv/versions/leetcode/bin/lc start {{args}}
 
-setup:
+setup +langs:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    # Ensure cmake is installed
-    if ! command -v cmake &> /dev/null; then
-        echo "cmake not found, installing via homebrew..."
-        brew install cmake
-    else
-        echo "cmake is already installed"
-    fi
+    langs="{{langs}}"
 
-    # Ensure rust/cargo is installed
-    if ! command -v cargo &> /dev/null; then
-        echo "cargo not found, installing via rustup..."
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        source "$HOME/.cargo/env"
-    else
-        echo "cargo is already installed"
-    fi
+    # Validate languages
+    valid_langs="cpp py rs"
+    for lang in $langs; do
+        if ! echo "$valid_langs" | grep -qw "$lang"; then
+            echo "Error: Invalid language '$lang'. Valid options: $valid_langs" >&2
+            exit 1
+        fi
+    done
+
+    has_lang() {
+        echo "$langs" | grep -qw "$1"
+    }
+
+    # Helper to create language .envrc (non-destructive)
+    create_lang_envrc() {
+        local lang_dir="$1"
+        local lang_slug="$2"
+        local envrc_line="leetcode workspace use $lang_slug > /dev/null 2>&1"
+        local envrc_path="$lang_dir/.envrc"
+
+        if [ ! -f "$envrc_path" ]; then
+            echo "$envrc_line" > "$envrc_path"
+            echo "Created $envrc_path"
+        elif ! grep -qF "$envrc_line" "$envrc_path"; then
+            echo "$envrc_line" >> "$envrc_path"
+            echo "Added workspace activation to $envrc_path"
+        else
+            echo "$envrc_path already configured"
+        fi
+        if command -v direnv &> /dev/null; then
+            direnv allow "$envrc_path"
+        fi
+    }
+
+    # Helper to create workspace if it doesn't exist
+    create_workspace() {
+        local lang_slug="$1"
+        local lang_dir="$2"
+
+        if ! leetcode workspace list 2>/dev/null | grep -q "^  $lang_slug$"; then
+            echo "Creating workspace '$lang_slug'..."
+            leetcode workspace create -w "$lang_dir" "$lang_slug"
+        else
+            echo "Workspace '$lang_slug' already exists"
+        fi
+    }
+
+    # --- Shared setup ---
 
     # Ensure nodeenv is installed
     if ! command -v nodeenv &> /dev/null; then
@@ -33,7 +67,7 @@ setup:
     fi
 
     # Create node environment if it doesn't exist
-    if [ ! -d ".node" ]; then
+    if [ ! -d .node ]; then
         echo "Creating node environment..."
         nodeenv .node
     else
@@ -45,7 +79,7 @@ setup:
     source .node/bin/activate
     npm install -g @night-slayer18/leetcode-cli
 
-    # Ensure pyenv virtualenv 'leetcode' exists
+    # Ensure pyenv virtualenv 'leetcode' exists (needed for lc command)
     if ! pyenv versions --bare | grep -q '^leetcode$'; then
         echo "Creating pyenv virtualenv 'leetcode'..."
         pyenv virtualenv 3 leetcode
@@ -53,23 +87,101 @@ setup:
         echo "pyenv virtualenv 'leetcode' already exists"
     fi
 
-    # Create .python-version for auto-activation
-    echo "leetcode" > .python-version
-    echo "Created .python-version for auto-activation"
+    # Create .python-version for auto-activation (non-destructive)
+    if [ ! -f .python-version ]; then
+        echo "leetcode" > .python-version
+        echo "Created .python-version for auto-activation"
+    elif [ "$(cat .python-version)" != "leetcode" ]; then
+        echo 'Warning: .python-version exists with different content, skipping' >&2
+    else
+        echo '.python-version already configured'
+    fi
 
-    # Create .envrc for direnv to activate node environment
-    echo 'source_env_if_exists .node/bin/activate' > .envrc
+    # Install base Python package (needed for lc command)
+    echo "Installing lc command..."
+    ~/.pyenv/versions/leetcode/bin/pip install -e 'py/'
+
+    # --- C++ setup ---
+    if has_lang cpp; then
+        echo "=== Setting up C++ ==="
+
+        # Ensure cmake is installed
+        if ! command -v cmake &> /dev/null; then
+            echo "cmake not found, installing via homebrew..."
+            brew install cmake
+        else
+            echo "cmake is already installed"
+        fi
+
+        # Configure CMake for C++
+        echo "Configuring CMake..."
+        cmake -B cpp/build -S cpp
+
+        # Create workspace and .envrc
+        create_workspace cpp cpp
+        create_lang_envrc cpp cpp
+    fi
+
+    # --- Python setup ---
+    if has_lang py; then
+        echo "=== Setting up Python ==="
+
+        # Install pytest for Python development
+        echo "Installing pytest..."
+        ~/.pyenv/versions/leetcode/bin/pip install 'pytest>=7.0'
+
+        # Create workspace and .envrc
+        create_workspace py py
+        create_lang_envrc py py
+    fi
+
+    # --- Rust setup ---
+    if has_lang rs; then
+        echo "=== Setting up Rust ==="
+
+        # Ensure rust/cargo is installed
+        if ! command -v cargo &> /dev/null; then
+            echo "cargo not found, installing via rustup..."
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            source "$HOME/.cargo/env"
+        else
+            echo "cargo is already installed"
+        fi
+
+        # Create workspace and .envrc
+        create_workspace rs rs
+        create_lang_envrc rs rs
+    fi
+
+    # --- Default language selection ---
+    echo ""
+    echo "Select default language for 'just start':"
+    select default_lang in $langs; do
+        if [ -n "$default_lang" ]; then
+            break
+        fi
+    done
+
+    # --- Create root .envrc ---
+    echo "Creating .envrc..."
+    envrc_content="source_env_if_exists .node/bin/activate"$'\n'"export LEETCODE_DEFAULT_LANG=$default_lang"
+
+    # Check if .envrc exists and preserve any user additions
+    if [ -f .envrc ]; then
+        # Read existing content, filter out lines we manage
+        existing=$(grep -v '^source_env_if_exists .node/bin/activate$' .envrc | \
+                   grep -v '^export LEETCODE_DEFAULT_LANG=' || true)
+        if [ -n "$existing" ]; then
+            envrc_content="$envrc_content"$'\n'"$existing"
+        fi
+    fi
+
+    envrc_file=.envrc
+    echo "$envrc_content" > "$envrc_file"
+    printf 'Created %s with LEETCODE_DEFAULT_LANG=%s\n' "$envrc_file" "$default_lang"
+
     if command -v direnv &> /dev/null; then
         direnv allow
     fi
-    echo "Created .envrc for direnv"
 
-    # Install Python dev dependencies
-    echo "Installing Python dependencies..."
-    pip install -e 'py/[dev]'
-
-    # Configure CMake for C++
-    echo "Configuring CMake..."
-    cmake -B cpp/build -S cpp
-
-    echo "Setup complete!"
+    echo 'Setup complete!'
