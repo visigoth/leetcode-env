@@ -57,6 +57,13 @@ setup:
     echo "leetcode" > .python-version
     echo "Created .python-version for auto-activation"
 
+    # Create .envrc for direnv to activate node environment
+    echo 'source_env_if_exists .node/bin/activate' > .envrc
+    if command -v direnv &> /dev/null; then
+        direnv allow
+    fi
+    echo "Created .envrc for direnv"
+
     # Install Python dev dependencies
     echo "Installing Python dependencies..."
     pip install -e 'py/[dev]'

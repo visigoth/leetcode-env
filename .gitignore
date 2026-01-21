@@ -1,6 +1,7 @@
 .jj/
 .python-version
 .node/
+.envrc
 
 # C++ build
 cpp/.cache
