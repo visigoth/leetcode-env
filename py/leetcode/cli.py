@@ -288,11 +288,13 @@ def create_rs_module(
     rs_dir = repo_root / "rs"
     src_dir = rs_dir / "src"
 
-    # Read the solution file content
-    solution_content = leetcode_file.read_text()
+    # Calculate relative path from src/ to the leetcode file
+    relative_path = os.path.relpath(leetcode_file, src_dir)
 
-    # Create module with solution and tests
-    module_content = f'''{solution_content}
+    # Create module: import Solution from crate root, include the solution file
+    module_content = f'''use crate::Solution;
+
+include!("{relative_path}");
 
 #[cfg(test)]
 mod tests {{
@@ -305,9 +307,13 @@ mod tests {{
     module_path = src_dir / f"p{problem_number}.rs"
     module_path.write_text(module_content)
 
-    # Update lib.rs to include the new module
+    # Update lib.rs to include the new module and ensure Solution struct exists
     lib_path = src_dir / "lib.rs"
     lib_content = lib_path.read_text() if lib_path.exists() else ""
+
+    # Ensure Solution struct is defined in lib.rs
+    if "pub struct Solution" not in lib_content:
+        lib_content = "pub struct Solution;\n\n" + lib_content
 
     module_decl = f"pub mod p{problem_number};"
     if module_decl not in lib_content:
