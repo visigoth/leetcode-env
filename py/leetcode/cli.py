@@ -57,6 +57,27 @@ def cleanup_whitespace(file_path: Path) -> None:
     file_path.write_text(cleaned)
 
 
+def strip_markdown_fences(code: str) -> str:
+    """Remove markdown code fences from generated code."""
+    lines = code.strip().splitlines()
+    result = []
+    in_fence = False
+
+    for line in lines:
+        stripped = line.strip()
+        # Detect opening fence (```python, ```cpp, ```rust, ```, etc.)
+        if stripped.startswith("```"):
+            if not in_fence:
+                in_fence = True
+                continue  # Skip opening fence
+            else:
+                in_fence = False
+                continue  # Skip closing fence
+        result.append(line)
+
+    return "\n".join(result).strip()
+
+
 def extract_problem_description(cpp_file: Path) -> str:
     """Extract the problem description comment block from a leetcode cpp file."""
     content = cpp_file.read_text()
@@ -123,7 +144,7 @@ Requirements:
             text=True,
             check=True,
         )
-        return result.stdout.strip()
+        return strip_markdown_fences(result.stdout)
     except subprocess.CalledProcessError as e:
         click.echo(f"Error running claude: {e.stderr}", err=True)
         return ""
@@ -155,7 +176,7 @@ Requirements:
             text=True,
             check=True,
         )
-        return result.stdout.strip()
+        return strip_markdown_fences(result.stdout)
     except subprocess.CalledProcessError as e:
         click.echo(f"Error running claude: {e.stderr}", err=True)
         return ""
@@ -187,7 +208,7 @@ Requirements:
             text=True,
             check=True,
         )
-        return result.stdout.strip()
+        return strip_markdown_fences(result.stdout)
     except subprocess.CalledProcessError as e:
         click.echo(f"Error running claude: {e.stderr}", err=True)
         return ""
