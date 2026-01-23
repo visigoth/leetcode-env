@@ -3,6 +3,46 @@
 start *args:
     ~/.pyenv/versions/leetcode/bin/lc start {{args}}
 
+submit problem_number lang="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Determine language
+    if [[ -n "{{lang}}" ]]; then
+        lang="{{lang}}"
+    elif [[ "$(basename "$PWD")" =~ ^(cpp|py|rs)$ ]]; then
+        lang="$(basename "$PWD")"
+    elif [[ -n "${LEETCODE_DEFAULT_LANG:-}" ]]; then
+        lang="$LEETCODE_DEFAULT_LANG"
+    else
+        echo "Error: No language specified and not in a language directory" >&2
+        echo "Use -l/--lang or set LEETCODE_DEFAULT_LANG" >&2
+        exit 1
+    fi
+
+    # Map language to extension
+    case "$lang" in
+        cpp) ext="cpp" ;;
+        py)  ext="py" ;;
+        rs)  ext="rs" ;;
+        *)   echo "Unknown language: $lang" >&2; exit 1 ;;
+    esac
+
+    # Find solution file (relative to repo root)
+    repo_root="$(git rev-parse --show-toplevel)"
+    file=$(find "$repo_root/$lang" -name "{{problem_number}}.*.$ext" -type f 2>/dev/null | head -1)
+    if [[ -z "$file" ]]; then
+        echo "Solution not found for problem {{problem_number}} in $lang" >&2
+        exit 1
+    fi
+
+    # Get path relative to language directory
+    rel_path="${file#$repo_root/$lang/}"
+    echo "Submitting: $lang/$rel_path"
+
+    # Submit (must be in language directory for leetcode workspace)
+    cd "$repo_root/$lang" && leetcode x "$rel_path"
+
 setup +langs:
     #!/usr/bin/env bash
     set -euo pipefail
