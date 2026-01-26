@@ -5,6 +5,7 @@
 
 # C++ build
 cpp/.cache
+cpp/.clangd
 cpp/build/
 
 # Rust build
