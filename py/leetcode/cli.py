@@ -1,6 +1,8 @@
 """CLI wrapper for leetcode commands."""
 
+import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -499,6 +501,59 @@ def test_example1():
     if had_error:
         raise SystemExit(1)
     click.echo("Done!")
+
+
+@cli.group()
+def cpp():
+    """C++ specific commands."""
+    pass
+
+
+@cpp.command("fix-clangd")
+def fix_clangd():
+    """Fix compile_commands.json for clangd LSP support.
+
+    Adds entries for solution files that are #included by wrapper files,
+    so clangd can provide proper LSP support when editing solution files.
+    """
+    repo_root = get_repo_root()
+    cpp_dir = repo_root / "cpp"
+    cc_path = cpp_dir / "build" / "compile_commands.json"
+
+    if not cc_path.exists():
+        click.echo(f"Error: {cc_path} not found. Run cmake build first.", err=True)
+        raise SystemExit(1)
+
+    cc = json.loads(cc_path.read_text())
+
+    # Track existing files to avoid duplicates
+    existing_files = {entry["file"] for entry in cc}
+
+    new_entries = []
+    for entry in cc:
+        # Match wrapper files like /path/to/cpp/5.cpp
+        if re.search(r"/\d+\.cpp$", entry["file"]):
+            wrapper = Path(entry["file"])
+            if not wrapper.exists():
+                continue
+
+            content = wrapper.read_text()
+            # Find the #include for the solution file
+            match = re.search(r'#include\s+"([^"]+)"', content)
+            if match:
+                solution_path = (wrapper.parent / match.group(1)).resolve()
+                if solution_path.exists() and str(solution_path) not in existing_files:
+                    new_entry = entry.copy()
+                    new_entry["file"] = str(solution_path)
+                    new_entries.append(new_entry)
+                    existing_files.add(str(solution_path))
+
+    if new_entries:
+        cc.extend(new_entries)
+        cc_path.write_text(json.dumps(cc, indent=2) + "\n")
+        click.echo(f"Added {len(new_entries)} solution file entries to compile_commands.json")
+    else:
+        click.echo("No new entries to add")
 
 
 if __name__ == "__main__":

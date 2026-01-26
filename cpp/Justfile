@@ -7,7 +7,7 @@ clean:
 build:
     cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
     cmake --build build
-    python3 fix_compile_commands.py
+    ~/.pyenv/versions/leetcode/bin/lc cpp fix-clangd
     echo 'CompileFlags:' > .clangd
     echo '  CompilationDatabase: build' >> .clangd
 
