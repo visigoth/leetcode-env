@@ -503,6 +503,90 @@ def test_example1():
     click.echo("Done!")
 
 
+LANG_EXTENSIONS = {"cpp": "cpp", "py": "py", "rs": "rs"}
+
+
+def detect_language(lang_override: str | None) -> str:
+    """Detect language from override, current directory, or environment."""
+    if lang_override:
+        return lang_override
+
+    # Check if we're in a language directory
+    cwd_name = Path.cwd().name
+    if cwd_name in LANG_EXTENSIONS:
+        return cwd_name
+
+    # Fall back to environment variable
+    default_lang = os.environ.get("LEETCODE_DEFAULT_LANG")
+    if default_lang:
+        return default_lang
+
+    raise click.ClickException(
+        "No language specified and not in a language directory.\n"
+        "Use --lang or set LEETCODE_DEFAULT_LANG"
+    )
+
+
+def find_solution_file(repo_root: Path, problem_number: int, lang: str) -> Path:
+    """Find the solution file for a problem in a given language."""
+    if lang not in LANG_EXTENSIONS:
+        raise click.ClickException(f"Unknown language: {lang}")
+
+    ext = LANG_EXTENSIONS[lang]
+    lang_dir = repo_root / lang
+
+    # Search for file matching pattern: <number>.*.<ext>
+    pattern = f"{problem_number}.*"
+    for path in lang_dir.rglob(f"{pattern}.{ext}"):
+        # Ensure it matches the problem number exactly (not 10 matching 1)
+        if re.match(rf"^{problem_number}\.", path.name):
+            return path
+
+    raise click.ClickException(
+        f"Solution not found for problem {problem_number} in {lang}"
+    )
+
+
+def run_leetcode_command(cmd: str, problem_number: int, lang: str | None) -> None:
+    """Run a leetcode CLI command (x for submit, t for test) on a solution."""
+    repo_root = get_repo_root()
+    lang = detect_language(lang)
+    solution_file = find_solution_file(repo_root, problem_number, lang)
+
+    # Get path relative to language directory
+    lang_dir = repo_root / lang
+    rel_path = solution_file.relative_to(lang_dir)
+
+    action = "Submitting" if cmd == "x" else "Testing"
+    click.echo(f"{action}: {lang}/{rel_path}")
+
+    # Run leetcode command (must be in language directory for workspace)
+    try:
+        subprocess.run(
+            ["leetcode", cmd, str(rel_path)],
+            cwd=lang_dir,
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        raise SystemExit(e.returncode)
+
+
+@cli.command()
+@click.argument("problem_number", type=int)
+@click.option("-l", "--lang", default=None, help="Language: cpp, py, rs")
+def submit(problem_number: int, lang: str | None):
+    """Submit a solution to LeetCode."""
+    run_leetcode_command("x", problem_number, lang)
+
+
+@cli.command("try")
+@click.argument("problem_number", type=int)
+@click.option("-l", "--lang", default=None, help="Language: cpp, py, rs")
+def try_solution(problem_number: int, lang: str | None):
+    """Test a solution on LeetCode (without submitting)."""
+    run_leetcode_command("t", problem_number, lang)
+
+
 @cli.group()
 def cpp():
     """C++ specific commands."""

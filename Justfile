@@ -1,47 +1,40 @@
 # Justfile for leetcode project
 
+# Path to lc command
+lc := "~/.pyenv/versions/leetcode/bin/lc"
+
+# Detect language from invocation directory (before just changes to Justfile dir)
+# This is set by the shell before just runs
+invocation_dir := env('PWD', '')
+
 start *args:
-    ~/.pyenv/versions/leetcode/bin/lc start {{args}}
+    {{lc}} start {{args}}
 
 submit problem_number lang="":
     #!/usr/bin/env bash
-    set -euo pipefail
-
-    # Determine language
+    lang_arg=""
     if [[ -n "{{lang}}" ]]; then
-        lang="{{lang}}"
-    elif [[ "$(basename "$PWD")" =~ ^(cpp|py|rs)$ ]]; then
-        lang="$(basename "$PWD")"
-    elif [[ -n "${LEETCODE_DEFAULT_LANG:-}" ]]; then
-        lang="$LEETCODE_DEFAULT_LANG"
+        lang_arg="--lang {{lang}}"
     else
-        echo "Error: No language specified and not in a language directory" >&2
-        echo "Use -l/--lang or set LEETCODE_DEFAULT_LANG" >&2
-        exit 1
+        dir_name="$(basename "{{invocation_dir}}")"
+        if [[ "$dir_name" =~ ^(cpp|py|rs)$ ]]; then
+            lang_arg="--lang $dir_name"
+        fi
     fi
+    {{lc}} submit {{problem_number}} $lang_arg
 
-    # Map language to extension
-    case "$lang" in
-        cpp) ext="cpp" ;;
-        py)  ext="py" ;;
-        rs)  ext="rs" ;;
-        *)   echo "Unknown language: $lang" >&2; exit 1 ;;
-    esac
-
-    # Find solution file (relative to repo root)
-    repo_root="$(git rev-parse --show-toplevel)"
-    file=$(find "$repo_root/$lang" -name "{{problem_number}}.*.$ext" -type f 2>/dev/null | head -1)
-    if [[ -z "$file" ]]; then
-        echo "Solution not found for problem {{problem_number}} in $lang" >&2
-        exit 1
+try problem_number lang="":
+    #!/usr/bin/env bash
+    lang_arg=""
+    if [[ -n "{{lang}}" ]]; then
+        lang_arg="--lang {{lang}}"
+    else
+        dir_name="$(basename "{{invocation_dir}}")"
+        if [[ "$dir_name" =~ ^(cpp|py|rs)$ ]]; then
+            lang_arg="--lang $dir_name"
+        fi
     fi
-
-    # Get path relative to language directory
-    rel_path="${file#$repo_root/$lang/}"
-    echo "Submitting: $lang/$rel_path"
-
-    # Submit (must be in language directory for leetcode workspace)
-    cd "$repo_root/$lang" && leetcode x "$rel_path"
+    {{lc}} try {{problem_number}} $lang_arg
 
 setup +langs:
     #!/usr/bin/env bash
