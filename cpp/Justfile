@@ -4,12 +4,66 @@ set fallback
 clean:
     rm -rf build
 
-build:
-    cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+build flavor="debug":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{flavor}}" in
+        debug)   build_type="Debug" ;;
+        profile) build_type="RelWithDebInfo" ;;
+        *)       echo "Unknown flavor: {{flavor}}"; exit 1 ;;
+    esac
+    cmake -B build -S . -DCMAKE_BUILD_TYPE="$build_type" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
     cmake --build build
     ~/.pyenv/versions/leetcode/bin/lc cpp fix-clangd
     echo 'CompileFlags:' > .clangd
     echo '  CompilationDatabase: build' >> .clangd
+
+profile problem_number mode="functions" reps="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    TEST_FILE="{{problem_number}}.cpp"
+    BENCH_FILE="bench/{{problem_number}}.cpp"
+
+    # Generate/regenerate benchmark skeleton if needed
+    if [[ ! -f "$BENCH_FILE" ]] || [[ "$TEST_FILE" -nt "$BENCH_FILE" ]]; then
+        echo "Generating benchmark skeleton..."
+        ~/.pyenv/versions/leetcode/bin/lc cpp gen-bench {{problem_number}}
+        echo ""
+        echo "Edit bench/{{problem_number}}.cpp to customize benchmark inputs, then re-run"
+        exit 0
+    fi
+
+    # Build the benchmark
+    cmake -B build -S . -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    cmake --build build --target bench_{{problem_number}}
+
+    # Build benchmark args
+    BENCH_ARGS=""
+    if [[ -n "{{reps}}" ]]; then
+        BENCH_ARGS="--benchmark_repetitions={{reps}}"
+    fi
+
+    case "{{mode}}" in
+        functions)
+            # Flame graph profiling with samply
+            MallocNanoZone=0 samply record ./build/bench_{{problem_number}} $BENCH_ARGS 2>/dev/null
+            ;;
+        lines)
+            # Line-level profiling with Instruments
+            rm -rf profile.trace
+            MallocNanoZone=0 xcrun xctrace record \
+                --template 'Time Profiler' \
+                --no-prompt \
+                --output profile.trace \
+                --launch -- ./build/bench_{{problem_number}} $BENCH_ARGS
+            open profile.trace
+            ;;
+        *)
+            echo "Unknown mode: {{mode}}. Use 'functions' or 'lines'"
+            exit 1
+            ;;
+    esac
 
 debug filter="": build
     #!/usr/bin/env bash

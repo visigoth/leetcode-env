@@ -16,3 +16,11 @@ test filter="":
     else
         pytest -k "{{filter}}"
     fi
+
+profile problem_number times="10":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p profile-output
+    sudo py-spy record --output profile-output/p{{problem_number}}.svg --format flamegraph \
+        -- python -m pytest -k "p{{problem_number}}" --count={{times}} -q
+    open profile-output/p{{problem_number}}.svg

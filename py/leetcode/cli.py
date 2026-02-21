@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 
 import click
+import tree_sitter_cpp as ts_cpp
+from tree_sitter import Language, Parser
 
 
 def get_repo_root() -> Path:
@@ -327,6 +329,134 @@ mod tests {{
     return module_path
 
 
+def find_test_nodes(node, tests: list):
+    """Recursively find TEST() macros in the AST."""
+    # TEST(Suite, Name) { body } parses as function_definition
+    if node.type == "function_definition":
+        declarator = None
+        body = None
+        for child in node.children:
+            if child.type == "function_declarator":
+                declarator = child
+            elif child.type == "compound_statement":
+                body = child
+
+        if declarator and body and declarator.text.startswith(b"TEST("):
+            # Parse TEST(Suite, Name)
+            decl_text = declarator.text.decode()
+            # Extract the part inside parentheses
+            match = re.match(r"TEST\(([^,]+),\s*([^)]+)\)", decl_text)
+            if match:
+                test_name = match.group(2).strip()
+                tests.append({
+                    "name": test_name,
+                    "body": body.text.decode(),
+                    "body_node": body,
+                })
+        return
+
+    # Recurse into child nodes (e.g., namespace bodies)
+    for child in node.children:
+        find_test_nodes(child, tests)
+
+
+def parse_tests(content: str) -> list[dict]:
+    """Extract test info using tree-sitter."""
+    cpp_language = Language(ts_cpp.language())
+    parser = Parser(cpp_language)
+    tree = parser.parse(content.encode())
+
+    tests = []
+    find_test_nodes(tree.root_node, tests)
+    return tests
+
+
+def find_solution_call(node) -> str | None:
+    """Recursively find solution.method(...) call expression."""
+    if node.type == "call_expression":
+        func = node.child_by_field_name("function")
+        if func and func.type == "field_expression":
+            obj = func.child_by_field_name("argument")
+            if obj and obj.text == b"solution":
+                return node.text.decode()
+
+    for child in node.children:
+        result = find_solution_call(child)
+        if result:
+            return result
+    return None
+
+
+def extract_benchmark_parts(body_node) -> tuple[str, str | None]:
+    """Extract setup code and solution call from test body AST."""
+    setup_lines = []
+    solution_call = None
+
+    for stmt in body_node.children:
+        if stmt.type in ("{", "}"):
+            continue
+
+        text = stmt.text.decode().strip()
+
+        # Skip EXPECT_*/ASSERT_* but extract the solution call
+        if stmt.type == "expression_statement":
+            inner = stmt.children[0] if stmt.children else None
+            if inner and inner.type == "call_expression":
+                func = inner.child_by_field_name("function")
+                func_name = func.text.decode() if func else ""
+                if func_name.startswith(("EXPECT_", "ASSERT_")):
+                    # Find solution.method(...) inside assertion args
+                    solution_call = find_solution_call(inner) or solution_call
+                    continue
+
+        # Check for result = solution.method(...) or declaration with solution call
+        if stmt.type == "declaration" and "solution." in text:
+            found_call = find_solution_call(stmt)
+            if found_call:
+                solution_call = found_call
+                # Still add the declaration as setup (minus the init)
+                # Extract just the variable declaration part for setup
+                setup_lines.append(text)
+                continue
+
+        setup_lines.append(text)
+
+    # Clean up setup lines - remove any that contain the solution call
+    if solution_call:
+        setup_lines = [
+            line for line in setup_lines
+            if solution_call not in line
+        ]
+
+    return "\n    ".join(setup_lines), solution_call
+
+
+def generate_benchmark_code(tests: list[dict]) -> str:
+    """Generate benchmark functions from parsed tests."""
+    benchmarks = []
+
+    for test in tests:
+        name = test["name"]
+        body_node = test["body_node"]
+        setup_code, solution_call = extract_benchmark_parts(body_node)
+
+        if not solution_call:
+            # Skip tests where we couldn't find the solution call
+            continue
+
+        # Build the benchmark function
+        benchmark = f"""static void BM_{name}(benchmark::State& state) {{
+    {setup_code}
+    for (auto _ : state) {{
+        benchmark::DoNotOptimize({solution_call});
+    }}
+}}
+BENCHMARK(BM_{name});"""
+        benchmarks.append(benchmark)
+
+    return "\n\n".join(benchmarks)
+
+
 @click.group()
 def cli():
     """LeetCode CLI wrapper with additional tooling."""
@@ -591,6 +721,78 @@ def try_solution(problem_number: int, lang: str | None):
 def cpp():
     """C++ specific commands."""
     pass
+
+
+@cpp.command("gen-bench")
+@click.argument("problem_number", type=int)
+def gen_bench(problem_number: int):
+    """Generate benchmarks from a test wrapper.
+
+    Creates cpp/bench/<N>.cpp from cpp/<N>.cpp with one benchmark per test.
+    """
+    repo_root = get_repo_root()
+    cpp_dir = repo_root / "cpp"
+    test_file = cpp_dir / f"{problem_number}.cpp"
+    bench_dir = cpp_dir / "bench"
+    bench_file = bench_dir / f"{problem_number}.cpp"
+
+    if not test_file.exists():
+        raise click.ClickException(f"Test wrapper not found: {test_file}")
+
+    bench_dir.mkdir(exist_ok=True)
+
+    content = test_file.read_text()
+
+    # Extract solution include
+    solution_match = re.search(r'#include "([^"]+\.cpp)"', content)
+    if not solution_match:
+        raise click.ClickException("Could not find solution #include in test wrapper")
+    solution_include = solution_match.group(1)
+
+    # Extract std includes (excluding gtest)
+    std_includes = re.findall(r"#include <([^>]+)>", content)
+    std_includes = [i for i in std_includes if "gtest" not in i]
+
+    # Extract using declarations
+    using_decls = re.findall(r"^using [^;]+;", content, re.MULTILINE)
+
+    # Parse tests with tree-sitter
+    tests = parse_tests(content)
+    if not tests:
+        raise click.ClickException("No TEST() macros found in test wrapper")
+
+    # Generate benchmark functions
+    benchmark_code = generate_benchmark_code(tests)
+    if not benchmark_code:
+        raise click.ClickException("Could not extract solution calls from tests")
+
+    # Build the benchmark file
+    std_include_lines = "\n".join(f"#include <{i}>" for i in std_includes)
+    using_lines = "\n".join(using_decls)
+
+    bench_content = f"""#include <benchmark/benchmark.h>
+{std_include_lines}
+
+namespace leetcode::p{problem_number} {{ class Solution; }}
+#define Solution leetcode::p{problem_number}::Solution
+
+{using_lines}
+
+#include "{solution_include}"
+
+namespace leetcode::p{problem_number} {{
+
+{benchmark_code}
+
+}}
+
+BENCHMARK_MAIN();
+"""
+
+    bench_file.write_text(bench_content)
+    click.echo(f"Generated: {bench_file.relative_to(repo_root)}")
+    click.echo(f"Benchmarks: {len(tests)}")
+    click.echo("Run: just profile " + str(problem_number))
 
 
 @cpp.command("fix-clangd")

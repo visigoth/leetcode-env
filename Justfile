@@ -186,6 +186,17 @@ setup +langs:
         create_lang_envrc rs rs
     fi
 
+    # --- Profiling tools setup ---
+    # Install samply for profiling (C++/Rust) if any of those languages are selected
+    if has_lang cpp || has_lang rs; then
+        if ! command -v samply &>/dev/null; then
+            echo "Installing samply for profiling..."
+            cargo install samply
+        else
+            echo "samply is already installed"
+        fi
+    fi
+
     # --- Default language selection ---
     echo ""
     echo "Select default language for 'just start':"

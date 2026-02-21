@@ -8,6 +8,9 @@ cpp/.cache
 cpp/.clangd
 cpp/build/
 cpp/compile_commands.json
+cpp/bench/
+cpp/profile.trace/
+cpp/profile.json.gz
 
 # Rust build
 rs/Cargo.lock

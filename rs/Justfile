@@ -1,8 +1,14 @@
 # Justfile for Rust leetcode solutions
 set fallback
 
-build:
-    cargo build
+build flavor="debug":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{flavor}}" in
+        debug)   cargo build ;;
+        profile) cargo build --profile profiling ;;
+        *)       echo "Unknown flavor: {{flavor}}"; exit 1 ;;
+    esac
 
 test filter="":
     #!/usr/bin/env bash
@@ -16,3 +22,10 @@ test filter="":
     else
         cargo test "{{filter}}"
     fi
+
+profile problem_number times="10":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just build profile
+    # Run tests N times under samply using a loop wrapper
+    samply record sh -c 'for i in $(seq 1 {{times}}); do ./target/profiling/leetcode_tests p{{problem_number}} --exact --nocapture --test-threads=1; done'

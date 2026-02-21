@@ -10,3 +10,7 @@ edition = "2021"
 [[bin]]
 name = "leetcode_tests"
 path = "src/main.rs"
+
+[profile.profiling]
+inherits = "release"
+debug = true
