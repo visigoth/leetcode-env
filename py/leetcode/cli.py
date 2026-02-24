@@ -371,17 +371,29 @@ def parse_tests(content: str) -> list[dict]:
     return tests
 
 
-def find_solution_call(node) -> str | None:
+def find_solution_var_names(node) -> set[str]:
+    """Find variable names declared as Solution in a compound_statement."""
+    names = set()
+    for child in node.children:
+        if child.type == "declaration":
+            text = child.text.decode()
+            m = re.match(r"Solution\s+(\w+)", text)
+            if m:
+                names.add(m.group(1))
+    return names
+
+
+def find_solution_call(node, var_names: set[str]) -> str | None:
     """Recursively find solution.method(...) call expression."""
     if node.type == "call_expression":
         func = node.child_by_field_name("function")
         if func and func.type == "field_expression":
             obj = func.child_by_field_name("argument")
-            if obj and obj.text == b"solution":
+            if obj and obj.text.decode() in var_names:
                 return node.text.decode()
 
     for child in node.children:
-        result = find_solution_call(child)
+        result = find_solution_call(child, var_names)
         if result:
             return result
     return None
@@ -389,6 +401,7 @@ def find_solution_call(node) -> str | None:
 
 def extract_benchmark_parts(body_node) -> tuple[str, str | None]:
     """Extract setup code and solution call from test body AST."""
+    var_names = find_solution_var_names(body_node)
     setup_lines = []
     solution_call = None
 
@@ -406,12 +419,12 @@ def extract_benchmark_parts(body_node) -> tuple[str, str | None]:
                 func_name = func.text.decode() if func else ""
                 if func_name.startswith(("EXPECT_", "ASSERT_")):
                     # Find solution.method(...) inside assertion args
-                    solution_call = find_solution_call(inner) or solution_call
+                    solution_call = find_solution_call(inner, var_names) or solution_call
                     continue
 
         # Check for result = solution.method(...) or declaration with solution call
-        if stmt.type == "declaration" and "solution." in text:
-            found_call = find_solution_call(stmt)
+        if stmt.type == "declaration" and any(f"{v}." in text for v in var_names):
+            found_call = find_solution_call(stmt, var_names)
             if found_call:
                 solution_call = found_call
                 # Still add the declaration as setup (minus the init)
