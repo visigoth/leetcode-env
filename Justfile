@@ -59,17 +59,27 @@ setup +langs:
     create_lang_envrc() {
         local lang_dir="$1"
         local lang_slug="$2"
+        local source_up_line="source_up"
         local envrc_line="leetcode workspace use $lang_slug > /dev/null 2>&1"
         local envrc_path="$lang_dir/.envrc"
 
         if [ ! -f "$envrc_path" ]; then
-            echo "$envrc_line" > "$envrc_path"
+            printf '%s\n%s\n' "$source_up_line" "$envrc_line" > "$envrc_path"
             echo "Created $envrc_path"
-        elif ! grep -qF "$envrc_line" "$envrc_path"; then
-            echo "$envrc_line" >> "$envrc_path"
-            echo "Added workspace activation to $envrc_path"
         else
-            echo "$envrc_path already configured"
+            if ! grep -qF "$source_up_line" "$envrc_path"; then
+                # Prepend source_up before existing content
+                local tmp
+                tmp="$(cat "$envrc_path")"
+                printf '%s\n%s\n' "$source_up_line" "$tmp" > "$envrc_path"
+                echo "Added source_up to $envrc_path"
+            fi
+            if ! grep -qF "$envrc_line" "$envrc_path"; then
+                echo "$envrc_line" >> "$envrc_path"
+                echo "Added workspace activation to $envrc_path"
+            else
+                echo "$envrc_path already configured"
+            fi
         fi
         if command -v direnv &> /dev/null; then
             direnv allow "$envrc_path"
