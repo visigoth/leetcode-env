@@ -29,9 +29,6 @@ profile problem_number mode="functions" reps="":
     if [[ ! -f "$BENCH_FILE" ]] || [[ "$TEST_FILE" -nt "$BENCH_FILE" ]]; then
         echo "Generating benchmark skeleton..."
         ~/.pyenv/versions/leetcode/bin/lc cpp gen-bench {{problem_number}}
-        echo ""
-        echo "Edit bench/{{problem_number}}.cpp to customize benchmark inputs, then re-run"
-        exit 0
     fi
 
     # Build the benchmark
@@ -59,8 +56,18 @@ profile problem_number mode="functions" reps="":
                 --launch -- ./build/bench_{{problem_number}} $BENCH_ARGS
             open "$trace_file"
             ;;
+        memory)
+            # Heap allocation profiling with Instruments
+            trace_file="memory_p{{problem_number}}_$(date +%Y%m%d_%H%M%S).trace"
+            MallocNanoZone=0 xcrun xctrace record \
+                --template 'Allocations' \
+                --no-prompt \
+                --output "$trace_file" \
+                --launch -- ./build/bench_{{problem_number}} $BENCH_ARGS
+            open "$trace_file"
+            ;;
         *)
-            echo "Unknown mode: {{mode}}. Use 'functions' or 'lines'"
+            echo "Unknown mode: {{mode}}. Use 'functions', 'lines', or 'memory'"
             exit 1
             ;;
     esac
