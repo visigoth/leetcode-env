@@ -29,7 +29,7 @@ def parse_leetcode_output(output: str) -> Path | None:
     for line in output.splitlines():
         if line.startswith("Path:"):
             path_str = line[5:].strip()
-            return Path(path_str)
+            return Path(path_str).resolve()
     return None
 
 

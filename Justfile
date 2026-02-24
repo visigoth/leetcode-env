@@ -76,7 +76,16 @@ setup +langs:
         fi
     }
 
-    # Helper to create workspace if it doesn't exist
+    # Map our language slugs to leetcode-cli language names
+    leetcode_lang() {
+        case "$1" in
+            cpp) echo "cpp" ;;
+            py)  echo "python3" ;;
+            rs)  echo "rust" ;;
+        esac
+    }
+
+    # Helper to create workspace if it doesn't exist, and configure its language
     create_workspace() {
         local lang_slug="$1"
         local lang_dir="$2"
@@ -87,6 +96,9 @@ setup +langs:
         else
             echo "Workspace '$lang_slug' already exists"
         fi
+        echo "Configuring workspace '$lang_slug' language..."
+        leetcode workspace use "$lang_slug" > /dev/null 2>&1
+        leetcode config -l "$(leetcode_lang "$lang_slug")"
     }
 
     # --- Shared setup ---
