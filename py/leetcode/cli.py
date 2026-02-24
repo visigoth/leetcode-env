@@ -134,11 +134,11 @@ def generate_cpp_tests_with_claude(problem_desc: str, problem_number: int) -> st
 Requirements:
 - Output ONLY the TEST() macros, no explanation or other text
 - Do NOT include markdown code fences
-- Use test names like Example1, Example2, etc.
 - The test suite name should be P{problem_number}
 - Create a Solution instance and call the appropriate method
 - Use EXPECT_EQ for assertions
-- Include all examples from the problem description
+- First, include all examples from the problem description, named Example1, Example2, etc.
+- Then, generate additional corner case tests (boundary conditions, edge cases, minimum/maximum inputs, single elements, empty inputs, etc.), named Generated1, Generated2, etc.
 """
 
     try:
@@ -166,10 +166,10 @@ def generate_py_tests_with_claude(problem_desc: str, problem_number: int) -> str
 Requirements:
 - Output ONLY the test functions, no explanation or other text
 - Do NOT include markdown code fences
-- Use function names like test_example1, test_example2, etc.
 - Create a Solution instance and call the appropriate method
 - Use assert statements for assertions
-- Include all examples from the problem description
+- First, include all examples from the problem description, named test_example1, test_example2, etc.
+- Then, generate additional corner case tests (boundary conditions, edge cases, minimum/maximum inputs, single elements, empty inputs, etc.), named test_generated1, test_generated2, etc.
 - Do NOT include any import statements - those will be added separately
 """
 
@@ -198,10 +198,10 @@ def generate_rs_tests_with_claude(problem_desc: str, problem_number: int) -> str
 Requirements:
 - Output ONLY the test functions with #[test] attribute, no explanation or other text
 - Do NOT include markdown code fences
-- Use function names like test_example1, test_example2, etc.
 - Create a Solution instance and call the appropriate method
 - Use assert_eq! macro for assertions
-- Include all examples from the problem description
+- First, include all examples from the problem description, named test_example1, test_example2, etc.
+- Then, generate additional corner case tests (boundary conditions, edge cases, minimum/maximum inputs, single elements, empty inputs, etc.), named test_generated1, test_generated2, etc.
 - Do NOT include mod tests or cfg(test) - those will be added separately
 """
 
