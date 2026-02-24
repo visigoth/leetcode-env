@@ -13,7 +13,7 @@ build flavor="debug":
         *)       echo "Unknown flavor: {{flavor}}"; exit 1 ;;
     esac
     cmake -B build -S . -DCMAKE_BUILD_TYPE="$build_type" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-    cmake --build build
+    cmake --build build --parallel
     ~/.pyenv/versions/leetcode/bin/lc cpp fix-clangd
     echo 'CompileFlags:' > .clangd
     echo '  CompilationDatabase: build' >> .clangd
@@ -33,7 +33,7 @@ profile problem_number mode="functions" reps="":
 
     # Build the benchmark
     cmake -B build -S . -DCMAKE_BUILD_TYPE=RelWithDebInfo
-    cmake --build build --target bench_{{problem_number}}
+    cmake --build build --parallel --target bench_{{problem_number}} --parallel
 
     # Build benchmark args
     BENCH_ARGS=""
