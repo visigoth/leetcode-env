@@ -36,20 +36,22 @@ target_include_directories(leetcode_tests PRIVATE ${CMAKE_SOURCE_DIR})
 include(GoogleTest)
 gtest_discover_tests(leetcode_tests)
 
-# Benchmark support
-FetchContent_Declare(
-    benchmark
-    GIT_REPOSITORY https://github.com/google/benchmark.git
-    GIT_TAG v1.8.3
-)
-set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(benchmark)
-
-# Each bench/*.cpp becomes its own benchmark binary
+# Benchmark support (only when bench files exist)
 file(GLOB BENCHMARK_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/bench/[0-9]*.cpp")
-foreach(BENCH_SRC ${BENCHMARK_SOURCES})
-    get_filename_component(BENCH_NAME ${BENCH_SRC} NAME_WE)
-    add_executable(bench_${BENCH_NAME} ${BENCH_SRC})
-    target_link_libraries(bench_${BENCH_NAME} PRIVATE benchmark::benchmark)
-    target_include_directories(bench_${BENCH_NAME} PRIVATE ${CMAKE_SOURCE_DIR})
-endforeach()
+if(BENCHMARK_SOURCES)
+    FetchContent_Declare(
+        benchmark
+        GIT_REPOSITORY https://github.com/google/benchmark.git
+        GIT_TAG v1.8.3
+    )
+    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(benchmark)
+
+    # Each bench/*.cpp becomes its own benchmark binary
+    foreach(BENCH_SRC ${BENCHMARK_SOURCES})
+        get_filename_component(BENCH_NAME ${BENCH_SRC} NAME_WE)
+        add_executable(bench_${BENCH_NAME} ${BENCH_SRC})
+        target_link_libraries(bench_${BENCH_NAME} PRIVATE benchmark::benchmark)
+        target_include_directories(bench_${BENCH_NAME} PRIVATE ${CMAKE_SOURCE_DIR})
+    endforeach()
+endif()
