@@ -696,18 +696,17 @@ def run_leetcode_command(cmd: str, problem_number: int, lang: str | None) -> Non
     lang = detect_language(lang)
     solution_file = find_solution_file(repo_root, problem_number, lang)
 
-    # Get path relative to language directory
-    lang_dir = repo_root / lang
-    rel_path = solution_file.relative_to(lang_dir)
+    # Get path relative to repo root (matches workspace workdir layout)
+    rel_path = solution_file.relative_to(repo_root)
 
     action = "Submitting" if cmd == "x" else "Testing"
-    click.echo(f"{action}: {lang}/{rel_path}")
+    click.echo(f"{action}: {rel_path}")
 
-    # Run leetcode command (must be in language directory for workspace)
+    # Run from repo root so paths align with workspace workdir config
     try:
         subprocess.run(
             ["leetcode", cmd, str(rel_path)],
-            cwd=lang_dir,
+            cwd=repo_root,
             check=True,
         )
     except subprocess.CalledProcessError as e:
