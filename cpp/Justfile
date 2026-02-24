@@ -51,13 +51,13 @@ profile problem_number mode="functions" reps="":
             ;;
         lines)
             # Line-level profiling with Instruments
-            rm -rf profile.trace
+            trace_file="profile_p{{problem_number}}_$(date +%Y%m%d_%H%M%S).trace"
             MallocNanoZone=0 xcrun xctrace record \
                 --template 'Time Profiler' \
                 --no-prompt \
-                --output profile.trace \
+                --output "$trace_file" \
                 --launch -- ./build/bench_{{problem_number}} $BENCH_ARGS
-            open profile.trace
+            open "$trace_file"
             ;;
         *)
             echo "Unknown mode: {{mode}}. Use 'functions' or 'lines'"
