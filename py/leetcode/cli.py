@@ -459,6 +459,7 @@ def generate_benchmark_code(tests: list[dict]) -> str:
 
         # Build the benchmark function
         benchmark = f"""static void BM_{name}(benchmark::State& state) {{
+    fprintf(stderr, ">> BM_{name}\\n");
     {setup_code}
     for (auto _ : state) {{
         benchmark::DoNotOptimize({solution_call});
@@ -783,6 +784,7 @@ def gen_bench(problem_number: int):
     using_lines = "\n".join(using_decls)
 
     bench_content = f"""#include <benchmark/benchmark.h>
+#include <cstdio>
 {std_include_lines}
 
 namespace leetcode::p{problem_number} {{ class Solution; }}

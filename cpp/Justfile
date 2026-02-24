@@ -46,26 +46,25 @@ profile problem_number mode="functions" reps="":
             # Flame graph profiling with samply
             MallocNanoZone=0 samply record ./build/bench_{{problem_number}} $BENCH_ARGS 2>/dev/null
             ;;
-        lines)
-            # Line-level profiling with Instruments
-            trace_file="profile_p{{problem_number}}_$(date +%Y%m%d_%H%M%S).trace"
+        lines|memory)
+            # xctrace swallows child output, so list benchmarks upfront
+            echo "Tests to profile:"
+            ./build/bench_{{problem_number}} --benchmark_list_tests | sed 's/^/  /'
+
+            if [[ "{{mode}}" == "lines" ]]; then
+                template="Time Profiler"
+                trace_file="profile_p{{problem_number}}_$(date +%Y%m%d_%H%M%S).trace"
+            else
+                template="Allocations"
+                trace_file="memory_p{{problem_number}}_$(date +%Y%m%d_%H%M%S).trace"
+            fi
             MallocNanoZone=0 xcrun xctrace record \
-                --template 'Time Profiler' \
+                --template "$template" \
                 --no-prompt \
                 --output "$trace_file" \
-                --launch -- ./build/bench_{{problem_number}} $BENCH_ARGS \
-                || true
-            open "$trace_file"
-            ;;
-        memory)
-            # Heap allocation profiling with Instruments
-            trace_file="memory_p{{problem_number}}_$(date +%Y%m%d_%H%M%S).trace"
-            MallocNanoZone=0 xcrun xctrace record \
-                --template 'Allocations' \
-                --no-prompt \
-                --output "$trace_file" \
-                --launch -- ./build/bench_{{problem_number}} $BENCH_ARGS \
-                || true
+                --launch -- ./build/bench_{{problem_number}} \
+                    --benchmark_min_time=0.1s $BENCH_ARGS \
+                2>/dev/null || true
             open "$trace_file"
             ;;
         *)
