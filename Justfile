@@ -113,7 +113,8 @@ setup +langs:
     npm install -g @night-slayer18/leetcode-cli
 
     # Ensure pyenv virtualenv 'leetcode' exists (needed for lc command)
-    if ! pyenv versions --bare | grep -q '^leetcode$'; then
+    _pyenv_versions="$(pyenv versions --bare 2>/dev/null || true)"
+    if ! echo "$_pyenv_versions" | grep -q '^leetcode$'; then
         echo "Creating pyenv virtualenv 'leetcode'..."
         pyenv virtualenv 3 leetcode
     else
