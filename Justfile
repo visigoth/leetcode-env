@@ -160,9 +160,9 @@ setup +langs:
     if has_lang py; then
         echo "=== Setting up Python ==="
 
-        # Install pytest for Python development
-        echo "Installing pytest..."
-        ~/.pyenv/versions/leetcode/bin/pip install 'pytest>=7.0'
+        # Install dev dependencies (pytest, pytest-repeat, py-spy, etc.)
+        echo "Installing dev dependencies..."
+        ~/.pyenv/versions/leetcode/bin/pip install -e 'py/[dev]'
 
         # Create workspace and .envrc
         create_workspace py py
