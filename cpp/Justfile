@@ -69,14 +69,19 @@ debug filter="": build
     #!/usr/bin/env bash
     set -euo pipefail
 
+    rr="command alias rr process launch"
+
     if [[ -z "{{filter}}" ]]; then
-        lldb ./build/leetcode_tests
+        lldb ./build/leetcode_tests \
+            -o "$rr"
     elif [[ "{{filter}}" =~ ^[0-9]+$ ]]; then
         lldb ./build/leetcode_tests \
+            -o "$rr" \
             -o "breakpoint set -r 'leetcode::p{{filter}}::P{{filter}}_.*::TestBody'" \
             -o "settings set target.run-args -- --gtest_filter=*P{{filter}}*"
     else
         lldb ./build/leetcode_tests \
+            -o "$rr" \
             -o "settings set target.run-args -- --gtest_filter={{filter}}"
     fi
 
