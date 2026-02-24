@@ -53,7 +53,8 @@ profile problem_number mode="functions" reps="":
                 --template 'Time Profiler' \
                 --no-prompt \
                 --output "$trace_file" \
-                --launch -- ./build/bench_{{problem_number}} $BENCH_ARGS
+                --launch -- ./build/bench_{{problem_number}} $BENCH_ARGS \
+                || true
             open "$trace_file"
             ;;
         memory)
@@ -63,7 +64,8 @@ profile problem_number mode="functions" reps="":
                 --template 'Allocations' \
                 --no-prompt \
                 --output "$trace_file" \
-                --launch -- ./build/bench_{{problem_number}} $BENCH_ARGS
+                --launch -- ./build/bench_{{problem_number}} $BENCH_ARGS \
+                || true
             open "$trace_file"
             ;;
         *)
