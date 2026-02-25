@@ -9,7 +9,7 @@ cpp/.clangd
 cpp/build/
 cpp/compile_commands.json
 cpp/bench/
-cpp/profile.trace/
+cpp/*.trace/
 cpp/profile.json.gz
 
 # Rust build

@@ -460,6 +460,7 @@ def generate_benchmark_code(tests: list[dict]) -> str:
         # Build the benchmark function
         benchmark = f"""static void BM_{name}(benchmark::State& state) {{
     fprintf(stderr, ">> BM_{name}\\n");
+    _poi_open("BM_{name}");
     {setup_code}
     for (auto _ : state) {{
         benchmark::DoNotOptimize({solution_call});
@@ -785,6 +786,7 @@ def gen_bench(problem_number: int):
 
     bench_content = f"""#include <benchmark/benchmark.h>
 #include <cstdio>
+#include <os/signpost.h>
 {std_include_lines}
 
 namespace leetcode::p{problem_number} {{ class Solution; }}
@@ -793,6 +795,25 @@ namespace leetcode::p{problem_number} {{ class Solution; }}
 {using_lines}
 
 #include "{solution_include}"
+
+static os_log_t _poi = os_log_create("com.leetcode.bench", OS_LOG_CATEGORY_POINTS_OF_INTEREST);
+static os_signpost_id_t _poi_id;
+static const char* _poi_name = nullptr;
+
+// Open a signpost interval for a benchmark. Closes the previous one if a
+// different benchmark is starting. Same-name calls (calibration/measurement
+// reruns of the same benchmark) are no-ops, producing one interval per BM_*.
+static void _poi_open(const char* name) {{
+    if (_poi_name == name) return;
+    if (_poi_name) os_signpost_interval_end(_poi, _poi_id, "benchmark");
+    _poi_id = os_signpost_id_generate(_poi);
+    os_signpost_interval_begin(_poi, _poi_id, "benchmark", "%s", name);
+    _poi_name = name;
+}}
+
+__attribute__((destructor)) static void _poi_close() {{
+    if (_poi_name) os_signpost_interval_end(_poi, _poi_id, "benchmark");
+}}
 
 namespace leetcode::p{problem_number} {{
 

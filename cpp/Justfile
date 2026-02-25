@@ -25,20 +25,23 @@ profile problem_number mode="functions" reps="":
     TEST_FILE="{{problem_number}}.cpp"
     BENCH_FILE="bench/{{problem_number}}.cpp"
 
-    # Generate/regenerate benchmark skeleton if needed
-    if [[ ! -f "$BENCH_FILE" ]] || [[ "$TEST_FILE" -nt "$BENCH_FILE" ]]; then
-        echo "Generating benchmark skeleton..."
-        ~/.pyenv/versions/leetcode/bin/lc cpp gen-bench {{problem_number}}
-    fi
+    # mca is static analysis — no benchmark build needed
+    if [[ "{{mode}}" != "mca" ]]; then
+        # Generate/regenerate benchmark skeleton if needed
+        if [[ ! -f "$BENCH_FILE" ]] || [[ "$TEST_FILE" -nt "$BENCH_FILE" ]]; then
+            echo "Generating benchmark skeleton..."
+            ~/.pyenv/versions/leetcode/bin/lc cpp gen-bench {{problem_number}}
+        fi
 
-    # Build the benchmark
-    cmake -B build -S . -DCMAKE_BUILD_TYPE=RelWithDebInfo
-    cmake --build build --parallel --target bench_{{problem_number}} --parallel
+        # Build the benchmark
+        cmake -B build -S . -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        cmake --build build --parallel --target bench_{{problem_number}} --parallel
 
-    # Build benchmark args
-    BENCH_ARGS=""
-    if [[ -n "{{reps}}" ]]; then
-        BENCH_ARGS="--benchmark_repetitions={{reps}}"
+        # Build benchmark args
+        BENCH_ARGS=""
+        if [[ -n "{{reps}}" ]]; then
+            BENCH_ARGS="--benchmark_repetitions={{reps}}"
+        fi
     fi
 
     case "{{mode}}" in
@@ -67,8 +70,43 @@ profile problem_number mode="functions" reps="":
                 2>/dev/null || true
             open "$trace_file"
             ;;
+        cpu)
+            # xctrace swallows child output, so list benchmarks upfront
+            echo "Tests to profile:"
+            ./build/bench_{{problem_number}} --benchmark_list_tests | sed 's/^/  /'
+
+            trace_file="cpu_p{{problem_number}}_$(date +%Y%m%d_%H%M%S).trace"
+            MallocNanoZone=0 xcrun xctrace record \
+                --template "CPU Counters" \
+                --no-prompt \
+                --output "$trace_file" \
+                --launch -- ./build/bench_{{problem_number}} \
+                    --benchmark_min_time=0.1s $BENCH_ARGS \
+                2>/dev/null || true
+            open "$trace_file"
+            ;;
+        mca)
+            # Static pipeline analysis via llvm-mca.
+            # Compiles the wrapper file (which calls Solution methods via
+            # tests) against a minimal gtest stub in mca/, targeting x86_64
+            # since LeetCode judges run on x86.
+            LLVM=/opt/homebrew/opt/llvm/bin
+            "$LLVM/clang++" -std=c++20 -O2 -S -o - \
+                --target=x86_64-apple-macos \
+                -isysroot "$(xcrun --show-sdk-path)" \
+                -I mca -I . \
+                "$TEST_FILE" \
+                2>/dev/null \
+            | sed '/^[[:space:]]*\.build_version/d; /^[[:space:]]*\.subsections_via_symbols/d' \
+            | "$LLVM/llvm-mca" \
+                --mtriple=x86_64-unknown-linux-gnu \
+                --mcpu=skylake \
+                --skip-unsupported-instructions=parse-failure \
+                --timeline --bottleneck-analysis \
+                2> >(grep -v '^<stdin>:.*error:' >&2)
+            ;;
         *)
-            echo "Unknown mode: {{mode}}. Use 'functions', 'lines', or 'memory'"
+            echo "Unknown mode: {{mode}}. Use 'functions', 'lines', 'memory', 'cpu', or 'mca'"
             exit 1
             ;;
     esac
